@@ -20,7 +20,7 @@ Requires macOS 14 Sonoma or later.
 Or from the command line:
 
 ```sh
-xcodebuild -project PhotosScreensaver.xcodeproj -configuration Release -derivedDataPath build
+xcodebuild -project PhotosScreensaver.xcodeproj -scheme PhotosScreensaver -configuration Release -derivedDataPath build
 open build/Build/Products/Release/PhotosScreensaver.saver
 ```
 
