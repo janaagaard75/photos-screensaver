@@ -327,6 +327,14 @@ final class PhotosScreensaverView: ScreenSaverView {
   }
 
   override var configureSheet: NSWindow? {
+    // Reuse the controller. Its buttons only hold weak references to it, so
+    // replacing it would break a window that is already on screen.
+    if let controller = configureSheetController {
+      if !controller.window.isVisible {
+        controller.loadSettings()
+      }
+      return controller.window
+    }
     let controller = ConfigureSheetController(settings: settings) { [weak self] in
       self?.restartSlideshow()
     }

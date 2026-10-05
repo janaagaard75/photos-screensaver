@@ -34,6 +34,9 @@ final class ConfigureSheetController: NSObject {
       defer: true
     )
     super.init()
+    // The window is owned by this controller. Without this, closing it would
+    // release it a second time.
+    window.isReleasedWhenClosed = false
     buildContent()
     loadSettings()
   }
@@ -94,7 +97,8 @@ final class ConfigureSheetController: NSObject {
     window.contentView = contentView
   }
 
-  private func loadSettings() {
+  /// Shows the stored settings, discarding any unsaved changes.
+  func loadSettings() {
     selectedFolder = settings.folderURL
     updateFolderLabel()
 
