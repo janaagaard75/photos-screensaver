@@ -38,6 +38,7 @@ final class PhotosScreensaverView: ScreenSaverView {
   }
 
   deinit {
+    DistributedNotificationCenter.default().removeObserver(self)
     accessedFolder?.stopAccessingSecurityScopedResource()
   }
 
@@ -52,6 +53,18 @@ final class PhotosScreensaverView: ScreenSaverView {
     // Transitions are driven by Core Animation. The frame callback only needs
     // to check whether it's time for the next photo.
     animationTimeInterval = 0.25
+
+    // Since macOS 14, the screensaver host often doesn't call stopAnimation()
+    // and keeps old instances alive, so they would go on decoding photos in
+    // the background. Stop explicitly when the screensaver is dismissed.
+    if !isPreview {
+      DistributedNotificationCenter.default().addObserver(
+        self,
+        selector: #selector(screensaverWillStop),
+        name: Notification.Name("com.apple.screensaver.willstop"),
+        object: nil
+      )
+    }
   }
 
   // MARK: Screensaver life cycle
@@ -63,6 +76,10 @@ final class PhotosScreensaverView: ScreenSaverView {
 
   override func stopAnimation() {
     super.stopAnimation()
+    stopSlideshow()
+  }
+
+  @objc private func screensaverWillStop(_ notification: Notification) {
     stopSlideshow()
   }
 
