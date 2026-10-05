@@ -28,6 +28,7 @@ The bundle is ad-hoc signed. If macOS refuses to open it, allow it under System 
 
 ## Development notes
 
+- **Install script.** `scripts/install.sh` builds a Debug build (or `scripts/install.sh Release`), replaces the installed copy, and starts the screensaver. The first time, select Photos Screensaver in System Settings → Screen Saver.
 - **Logs.** The screensaver logs to the unified log. Follow it in a second Terminal window while the screensaver runs:
 
   ```sh
@@ -36,5 +37,5 @@ The bundle is ad-hoc signed. If macOS refuses to open it, allow it under System 
 
   Crash reports show up in Console.app under Crash Reports, filed under `legacyScreenSaver`.
 - **Debug builds use a sample folder.** When no folder has been chosen, they show the photos in a hard-coded sample folder (see `Settings.swift`). Release builds show a message asking you to choose a folder.
-- **Reinstalling may show the old version.** macOS keeps running the screensaver host after you install a new build. Run `killall legacyScreenSaver` (and close System Settings) before testing a new build.
+- **Reinstalling may show the old version.** macOS keeps running the screensaver host after you install a new build. Run `killall legacyScreenSaver` (and close System Settings) before testing a new build. The install script does this for you.
 - **Where settings are stored.** The screensaver runs in Apple's sandboxed `legacyScreenSaver` host, so settings are saved in `~/Library/Containers/com.apple.ScreenSaver.Engine.legacyScreenSaver/Data/Library/Preferences/`.
