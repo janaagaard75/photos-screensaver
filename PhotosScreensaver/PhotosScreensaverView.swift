@@ -25,6 +25,7 @@ final class PhotosScreensaverView: ScreenSaverView {
   private var preloadedImage: CGImage?
   private var nextTransitionTime: CFTimeInterval = 0
   private var currentPhotoLayer: CALayer?
+  private var messageLayer: CATextLayer?
 
   override init?(frame: NSRect, isPreview: Bool) {
     super.init(frame: frame, isPreview: isPreview)
@@ -73,10 +74,11 @@ final class PhotosScreensaverView: ScreenSaverView {
     super.setFrameSize(newSize)
     CATransaction.begin()
     CATransaction.setDisableActions(true)
-    for sublayer in layer?.sublayers ?? [] {
+    for sublayer in layer?.sublayers ?? [] where sublayer !== messageLayer {
       sublayer.bounds = CGRect(origin: .zero, size: newSize)
       sublayer.position = CGPoint(x: newSize.width / 2, y: newSize.height / 2)
     }
+    layoutMessageLayer(in: newSize)
     CATransaction.commit()
   }
 
@@ -91,6 +93,7 @@ final class PhotosScreensaverView: ScreenSaverView {
     nextTransitionTime = 0
 
     guard let folder = settings.folderURL else {
+      showMessage("No photo folder has been chosen.")
       return
     }
     if folder.startAccessingSecurityScopedResource() {
@@ -102,6 +105,10 @@ final class PhotosScreensaverView: ScreenSaverView {
       let urls = PhotoScanner.photos(in: folder)
       DispatchQueue.main.async {
         guard let self, self.generation == generation else {
+          return
+        }
+        guard !urls.isEmpty else {
+          self.showMessage(Self.emptyFolderProblem(folder))
           return
         }
         self.photos = ShuffledQueue(urls)
@@ -118,6 +125,7 @@ final class PhotosScreensaverView: ScreenSaverView {
     preloadedImage = nil
     photos = ShuffledQueue([])
     currentPhotoLayer = nil
+    messageLayer = nil
 
     CATransaction.begin()
     CATransaction.setDisableActions(true)
@@ -146,6 +154,8 @@ final class PhotosScreensaverView: ScreenSaverView {
 
     let generation = self.generation
     let targetSize = pixelSize
+    let folderPath = accessedFolder?.path ?? settings.folderURL?.path ?? ""
+
     loadQueue.async { [weak self] in
       let image = ImageLoader.loadImage(
         at: url,
@@ -166,6 +176,8 @@ final class PhotosScreensaverView: ScreenSaverView {
           self.consecutiveLoadFailures += 1
           if self.consecutiveLoadFailures < self.photos.count {
             self.preloadNextPhoto()
+          } else if self.currentPhotoLayer == nil {
+            self.showMessage("None of the photos in “\(folderPath)” could be opened.")
           }
         }
       }
@@ -228,6 +240,61 @@ final class PhotosScreensaverView: ScreenSaverView {
       previousLayer?.removeFromSuperlayer()
       CATransaction.commit()
     }
+  }
+
+  // MARK: Messages
+
+  private static func emptyFolderProblem(_ folder: URL) -> String {
+    var isDirectory: ObjCBool = false
+    let exists = FileManager.default.fileExists(atPath: folder.path, isDirectory: &isDirectory)
+    if exists && isDirectory.boolValue {
+      return "No JPEG, PNG or HEIC photos were found in “\(folder.path)”."
+    } else {
+      return "The folder “\(folder.path)” could not be opened."
+    }
+  }
+
+  /// Shows a centered message explaining why there are no photos to show.
+  private func showMessage(_ problem: String) {
+    guard let rootLayer = layer else {
+      return
+    }
+    let textLayer = messageLayer ?? CATextLayer()
+    textLayer.string = problem + "\n\nOpen Screen Saver Options to choose a folder."
+    textLayer.isWrapped = true
+    textLayer.alignmentMode = .center
+    textLayer.foregroundColor = NSColor(white: 1, alpha: 0.7).cgColor
+    textLayer.contentsScale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+    messageLayer = textLayer
+
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    if textLayer.superlayer == nil {
+      rootLayer.addSublayer(textLayer)
+    }
+    layoutMessageLayer(in: bounds.size)
+    CATransaction.commit()
+  }
+
+  /// Sizes the font to the view, so the message is readable both in the small
+  /// preview and full screen, and centers the text vertically.
+  private func layoutMessageLayer(in size: CGSize) {
+    guard let messageLayer, let message = messageLayer.string as? String else {
+      return
+    }
+    let fontSize = max(10, size.height / 40)
+    let font = NSFont.systemFont(ofSize: fontSize)
+    messageLayer.font = font
+    messageLayer.fontSize = fontSize
+
+    let width = size.width * 0.8
+    let textHeight = (message as NSString).boundingRect(
+      with: CGSize(width: width, height: .greatestFiniteMagnitude),
+      options: [.usesLineFragmentOrigin],
+      attributes: [.font: font]
+    ).height
+    messageLayer.bounds = CGRect(x: 0, y: 0, width: width, height: ceil(textHeight))
+    messageLayer.position = CGPoint(x: size.width / 2, y: size.height / 2)
   }
 
   /// The size of the view in pixels, used to decode photos at the right size.
