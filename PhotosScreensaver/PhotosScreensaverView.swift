@@ -1,5 +1,8 @@
+import OSLog
 import QuartzCore
 import ScreenSaver
+
+private let logger = Logger(subsystem: Logger.subsystem, category: "Slideshow")
 
 @objc(PhotosScreensaverView)
 final class PhotosScreensaverView: ScreenSaverView {
@@ -43,6 +46,8 @@ final class PhotosScreensaverView: ScreenSaverView {
   }
 
   private func setUp() {
+    logger.info("Created view (preview: \(self.isPreview), size: \(Double(self.frame.width)) x \(Double(self.frame.height)))")
+
     // Make this a layer-hosting view. All drawing happens in sublayers.
     let rootLayer = CALayer()
     rootLayer.backgroundColor = NSColor.black.cgColor
@@ -80,6 +85,7 @@ final class PhotosScreensaverView: ScreenSaverView {
   }
 
   @objc private func screensaverWillStop(_ notification: Notification) {
+    logger.info("Received willstop notification")
     stopSlideshow()
   }
 
@@ -108,18 +114,26 @@ final class PhotosScreensaverView: ScreenSaverView {
     isRunning = true
     delay = settings.delay
     nextTransitionTime = 0
+    logger.info("Starting slideshow (preview: \(self.isPreview), delay: \(self.delay) s)")
 
     guard let folder = settings.folderURL else {
+      logger.notice("No photo folder has been chosen")
       showMessage("No photo folder has been chosen.")
       return
     }
     if folder.startAccessingSecurityScopedResource() {
       accessedFolder = folder
     }
+    logger.info(
+      "Scanning \(folder.path, privacy: .public) (security-scoped access: \(self.accessedFolder != nil))"
+    )
 
     let generation = self.generation
     loadQueue.async { [weak self] in
+      let scanStart = Date()
       let urls = PhotoScanner.photos(in: folder)
+      let scanDuration = Date().timeIntervalSince(scanStart)
+      logger.info("Found \(urls.count) photos in \(scanDuration, format: .fixed(precision: 2)) s")
       DispatchQueue.main.async {
         guard let self, self.generation == generation else {
           return
@@ -135,6 +149,9 @@ final class PhotosScreensaverView: ScreenSaverView {
   }
 
   private func stopSlideshow() {
+    if isRunning {
+      logger.info("Stopping slideshow (preview: \(self.isPreview))")
+    }
     isRunning = false
     generation += 1
     isLoading = false
@@ -157,6 +174,7 @@ final class PhotosScreensaverView: ScreenSaverView {
     guard isRunning else {
       return
     }
+    logger.info("Settings changed, restarting slideshow")
     stopSlideshow()
     startSlideshow()
   }
@@ -174,11 +192,20 @@ final class PhotosScreensaverView: ScreenSaverView {
     let folderPath = accessedFolder?.path ?? settings.folderURL?.path ?? ""
 
     loadQueue.async { [weak self] in
+      let loadStart = Date()
       let image = ImageLoader.loadImage(
         at: url,
         filling: targetSize,
         maxZoom: KenBurnsMotion.maxZoom
       )
+      let loadMilliseconds = Int(Date().timeIntervalSince(loadStart) * 1000)
+      if let image {
+        logger.debug(
+          "Decoded \(url.lastPathComponent, privacy: .public) at \(image.width) x \(image.height) in \(loadMilliseconds) ms"
+        )
+      } else {
+        logger.error("Could not decode \(url.path, privacy: .public)")
+      }
       DispatchQueue.main.async {
         guard let self, self.generation == generation else {
           return
@@ -194,6 +221,7 @@ final class PhotosScreensaverView: ScreenSaverView {
           if self.consecutiveLoadFailures < self.photos.count {
             self.preloadNextPhoto()
           } else if self.currentPhotoLayer == nil {
+            logger.error("None of the photos could be decoded")
             self.showMessage("None of the photos in “\(folderPath)” could be opened.")
           }
         }

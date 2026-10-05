@@ -1,5 +1,8 @@
 import Foundation
+import OSLog
 import ScreenSaver
+
+private let logger = Logger(subsystem: Logger.subsystem, category: "Settings")
 
 /// The user's settings, stored with `ScreenSaverDefaults` so they end up in
 /// the screensaver host's sandbox container.
@@ -36,6 +39,7 @@ final class Settings {
       return min(max(stored, Self.delayRange.lowerBound), Self.delayRange.upperBound)
     }
     set {
+      logger.info("Saved delay \(newValue) s")
       defaults.set(newValue, forKey: Self.delayKey)
       defaults.synchronize()
     }
@@ -63,6 +67,7 @@ final class Settings {
       ) {
         return url
       }
+      logger.error("Could not resolve the folder bookmark, falling back to the stored path")
     }
 
     if let path = defaults.string(forKey: Self.folderPathKey) {
@@ -77,13 +82,19 @@ final class Settings {
   }
 
   func setFolderURL(_ url: URL) {
-    let bookmark =
-      (try? url.bookmarkData(
-        options: .withSecurityScope,
-        includingResourceValuesForKeys: nil,
-        relativeTo: nil
-      ))
-      ?? (try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil))
+    var bookmark = try? url.bookmarkData(
+      options: .withSecurityScope,
+      includingResourceValuesForKeys: nil,
+      relativeTo: nil
+    )
+    if bookmark == nil {
+      logger.notice("Could not create a security-scoped bookmark, using a plain bookmark")
+      bookmark = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
+    }
+    if bookmark == nil {
+      logger.error("Could not create a bookmark, storing only the path")
+    }
+    logger.info("Saved folder \(url.path, privacy: .public)")
     defaults.set(bookmark, forKey: Self.folderBookmarkKey)
     defaults.set(url.path, forKey: Self.folderPathKey)
     defaults.synchronize()

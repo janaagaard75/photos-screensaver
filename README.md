@@ -28,6 +28,13 @@ The bundle is ad-hoc signed. If macOS refuses to open it, allow it under System 
 
 ## Development notes
 
+- **Logs.** The screensaver logs to the unified log. Follow it in a second Terminal window while the screensaver runs:
+
+  ```sh
+  log stream --level debug --predicate 'subsystem == "net.aagaard.PhotosScreensaver"'
+  ```
+
+  Crash reports show up in Console.app under Crash Reports, filed under `legacyScreenSaver`.
 - **Debug builds use a sample folder.** When no folder has been chosen, they show the photos in a hard-coded sample folder (see `Settings.swift`). Release builds show a message asking you to choose a folder.
 - **Reinstalling may show the old version.** macOS keeps running the screensaver host after you install a new build. Run `killall legacyScreenSaver` (and close System Settings) before testing a new build.
 - **Where settings are stored.** The screensaver runs in Apple's sandboxed `legacyScreenSaver` host, so settings are saved in `~/Library/Containers/com.apple.ScreenSaver.Engine.legacyScreenSaver/Data/Library/Preferences/`.
