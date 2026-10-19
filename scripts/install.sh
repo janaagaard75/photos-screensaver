@@ -16,7 +16,7 @@ cd "$(dirname "$0")/.."
 product="build/Build/Products/$configuration/PhotosScreensaver.saver"
 install_dir="$HOME/Library/Screen Savers"
 
-echo "Building $configuration…"
+echo "Building ${configuration}…"
 xcodebuild build \
   -project PhotosScreensaver.xcodeproj \
   -scheme PhotosScreensaver \
@@ -29,7 +29,7 @@ echo "Stopping the screensaver host and System Settings…"
 killall legacyScreenSaver 2>/dev/null || true
 killall "System Settings" 2>/dev/null || true
 
-echo "Installing in $install_dir…"
+echo "Installing in ${install_dir}…"
 mkdir -p "$install_dir"
 rm -rf "$install_dir/PhotosScreensaver.saver"
 cp -R "$product" "$install_dir/"
