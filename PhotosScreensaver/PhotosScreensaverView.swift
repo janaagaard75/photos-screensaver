@@ -6,7 +6,7 @@ private let logger = Logger(subsystem: Logger.subsystem, category: "Slideshow")
 
 @objc(PhotosScreensaverView)
 final class PhotosScreensaverView: ScreenSaverView {
-  private static let fadeDuration: CFTimeInterval = 2
+  private static let fadeDuration: CFTimeInterval = 4
 
   private let settings = Settings()
   private var configureSheetController: ConfigureSheetController?
